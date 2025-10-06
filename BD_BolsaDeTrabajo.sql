@@ -1,0 +1,213 @@
+-- Database: BD_BolsaDeTrabajo
+DROP DATABASE IF EXISTS "BD_BolsaDeTrabajo";
+
+CREATE DATABASE "BD_BolsaDeTrabajo"
+    WITH
+    OWNER = postgres
+    ENCODING = 'UTF8'
+--    LC_COLLATE = 'Spanish_Spain.1252'
+--    LC_CTYPE = 'Spanish_Spain.1252'
+    LOCALE_PROVIDER = 'libc'
+    TABLESPACE = pg_default
+    CONNECTION LIMIT = -1
+    IS_TEMPLATE = False;
+
+--IMPORTANTE, CAMBIEN EL QUERY A LA BASE DE DATOS CREADA (No se cual es el comando equivalente a USE DATABASE)
+
+--Comando USE DATABASE de Postgres
+\connect "BD_BolsaDeTrabajo"
+
+--Seleccion del esquema
+SET search_path TO public;
+
+--Creacion de las tablas
+CREATE TABLE GIRO
+(
+	Giro_ID SERIAL PRIMARY KEY,
+	Nombre VARCHAR(55) NOT NULL
+);
+
+CREATE TABLE TIPO_USUARIO
+(
+	Tipo_ID SERIAL PRIMARY KEY,
+	NombreRol VARCHAR(20) NOT NULL
+);
+
+CREATE TABLE CATEGORIA_CURSO
+(
+	Categoria_ID SERIAL PRIMARY KEY,
+	Nombre VARCHAR(55) NOT NULL
+);
+
+CREATE TABLE NIVEL_CURSO
+(
+	Nivel_ID SERIAL PRIMARY KEY,
+	Nombre VARCHAR(55) NOT NULL
+);
+
+CREATE TABLE ESTUDIOS
+(
+	Nivel_ID SERIAL PRIMARY KEY,
+	Nombre VARCHAR(55) NOT NULL
+);
+
+CREATE TABLE MODALIDAD
+(
+	Modalidad_ID SERIAL PRIMARY KEY,
+	Nombre VARCHAR(55) NOT NULL
+);
+
+CREATE TABLE CATEGORIA_VACANTE
+(
+	Categoria_ID SERIAL PRIMARY KEY,
+	Nombre VARCHAR(55) NOT NULL
+);
+
+CREATE TABLE CUENTA
+(
+	Usuario_ID SERIAL PRIMARY KEY,
+	Email VARCHAR(255) NOT NULL,
+	Passwordd  VARCHAR(20) NOT NULL,
+	Tipo_Usuario_ID INT NOT NULL,
+	Fecha_Creacion TIMESTAMP NOT NULL,
+	Activo BOOLEAN NOT NULL,
+
+	--Creacion de llave foranea
+	CONSTRAINT FK_Cuenta_TipoUsuario FOREIGN KEY (Tipo_Usuario_ID) REFERENCES TIPO_USUARIO (Tipo_ID)
+);
+
+CREATE TABLE INSTRUCTOR
+(
+	Usuario_ID INT PRIMARY KEY,
+	Nombre VARCHAR(100) NOT NULL,
+	Apellidos VARCHAR(100) NOT NULL,
+	Credenciales VARCHAR (500) NOT NULL,
+
+	CONSTRAINT FK_Instructor_Cuenta FOREIGN KEY (Usuario_ID) REFERENCES CUENTA(Usuario_ID)
+);
+
+CREATE TABLE MENSAJERIA
+(
+	Mensaje_ID SERIAL PRIMARY KEY,
+	Remitente_ID INT NOT NULL,
+	Destinatario_ID INT NOT NULL,
+	Asunto VARCHAR(255) NOT NULL,
+	Cuerpo VARCHAR(255) NOT NULL,
+	Fecha_Envio TIMESTAMP NOT NULL,
+	Leido BOOLEAN NOT NULL,
+
+	CONSTRAINT FK_Mensajeria_Cuenta_Remitente FOREIGN KEY (Remitente_ID) REFERENCES CUENTA(Usuario_ID),
+	
+	CONSTRAINT FK_Mensajeria_Cuenta_Destinatario FOREIGN KEY (Destinatario_ID) REFERENCES CUENTA(Usuario_ID)
+);
+
+CREATE TABLE RECLUTADOR
+(
+	Usuario_ID INT PRIMARY KEY,
+	Nombre_Empresa VARCHAR(255) NOT NULL,
+	Descripcion VARCHAR(500) NOT NULL,
+	Logo_URL VARCHAR(255) NOT NULL,
+	SitioWeb VARCHAR(255) NOT NULL,
+	Giro_ID INT NOT NULL,
+
+	CONSTRAINT FK_Reclutador_Cuenta FOREIGN KEY (Usuario_ID) REFERENCES CUENTA(Usuario_ID),
+
+	CONSTRAINT FK_Reclutador_Giro FOREIGN KEY (Giro_ID) REFERENCES GIRO (Giro_ID)
+);
+
+CREATE TABLE CANDIDATO
+(
+	Usuario_ID INT PRIMARY KEY,
+	Nombre VARCHAR(100) NOT NULL,
+	Apellido VARCHAR(100) NOT NULL,
+	CV_URL VARCHAR(255) NOT NULL,
+	Habilidades VARCHAR(500) NOT NULL,
+	EstudiosMaximos INT NOT NULL,
+	Experiencia VARCHAR(500) NOT NULL,
+
+	CONSTRAINT FK_Candidato_Estudios FOREIGN KEY (EstudiosMaximos) REFERENCES ESTUDIOS (Nivel_ID),
+
+	CONSTRAINT FK_Candidato_Cuenta FOREIGN KEY (Usuario_ID) REFERENCES CUENTA(Usuario_ID)
+);
+
+CREATE TABLE VACANTE
+(
+	Vacante_ID SERIAL PRIMARY KEY,
+	Reclutador_ID INT NOT NULL,
+	Titulo VARCHAR(255) NOT NULL,
+	Descripcion VARCHAR(255) NOT NULL,
+	Requisitos VARCHAR(255) NOT NULL,
+	Ubicacion VARCHAR(100) NOT NULL,
+	Modalidad INT NOT NULL,
+	Salario_Min NUMERIC(10,2) NOT NULL,
+	Salario_Max NUMERIC(10,2) NOT NULL,
+	Fecha_Publicacion TIMESTAMP NOT NULL,
+	Categoria_Vacante INT NOT NULL,
+	Activa BOOLEAN NOT NULL,
+
+	CONSTRAINT FK_Vacante_Reclutador FOREIGN KEY (Reclutador_ID) REFERENCES RECLUTADOR (Usuario_ID),
+	CONSTRAINT FK_Vacante_Modalidad FOREIGN KEY (Modalidad) REFERENCES MODALIDAD (Modalidad_ID),
+	CONSTRAINT FK_Vacante_Categoria FOREIGN KEY (Categoria_Vacante) REFERENCES CATEGORIA_VACANTE (Categoria_ID)
+);
+
+CREATE TABLE POSTULACION
+(
+	Candidato_ID INT,
+	Vacante_ID INT,
+	Fecha_Postulacion TIMESTAMP NOT NULL,
+	Estado VARCHAR(50) NOT NULL,
+
+	PRIMARY KEY(Candidato_ID,Vacante_ID),
+	CONSTRAINT FK_Postulacion_Candaidato FOREIGN KEY (Candidato_ID) REFERENCES CANDIDATO (Usuario_ID),
+	CONSTRAINT FK_Postulacion_Vacante FOREIGN KEY (Vacante_ID) REFERENCES VACANTE (Vacante_ID)
+);
+
+CREATE TABLE CURSO
+(
+	Curso_ID SERIAL PRIMARY KEY,
+	Instructor_ID INT NOT NULL,
+	Titulo VARCHAR(255) NOT NULL,
+	Descripcion VARCHAR(500) NOT NULL,
+	Categoria_ID INT NOT NULL, 
+	Nivel_ID INT NOT NULL,
+	Duracion_Horas INT NOT NULL,
+	Fecha_Creacion TIMESTAMP NOT NULL,
+
+	CONSTRAINT FK_Curso_Instructor FOREIGN KEY (Instructor_ID) REFERENCES INSTRUCTOR (Usuario_ID),
+	CONSTRAINT FK_Curso_Categoria FOREIGN KEY (Categoria_ID) REFERENCES CATEGORIA_CURSO (Categoria_ID)
+);
+
+CREATE TABLE MATERIAL_CURSO
+(
+	Material_ID SERIAL PRIMARY KEY,
+	Curso_ID INT NOT NULL,
+	Nombre VARCHAR(255) NOT NULL,
+	Contenido TEXT NOT NULL,
+	Duracion_Horas INT NOT NULL,
+
+	CONSTRAINT FK_Material_Curso FOREIGN KEY (Curso_ID) REFERENCES CURSO (Curso_ID)
+);
+
+CREATE TABLE MATERIAL_COMPLETADO
+(
+	Material_ID INT,
+	Candidato_ID INT,
+
+	PRIMARY KEY (Material_ID,Candidato_ID),
+	CONSTRAINT FK_MatCompleto_Material FOREIGN KEY (Material_ID) REFERENCES MATERIAL_CURSO (Material_ID),
+	CONSTRAINT FK_MatCompleto_Candidato FOREIGN KEY (Candidato_ID) REFERENCES CANDIDATO (Usuario_ID)
+);
+
+CREATE TABLE INSCRIPCION_CURSO
+(
+	Curso_ID INT,
+	Candidato_ID INT,
+	Progres_Horas INT NOT NULL,
+	Finalizado BOOLEAN NOT NULL,
+	Fecha_Inscripcion TIMESTAMP NOT NULL,
+	Fecha_Completado TIMESTAMP, 
+
+	PRIMARY KEY (Curso_ID,Candidato_ID),
+	CONSTRAINT FK_InscripcionCurso_Curso FOREIGN KEY (Curso_ID) REFERENCES CURSO (Curso_ID),
+	CONSTRAINT FK_InscripcionCurso_Candidato FOREIGN KEY (Candidato_ID) REFERENCES CANDIDATO (Usuario_ID)
+)
